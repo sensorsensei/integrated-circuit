@@ -13,7 +13,7 @@ param(
     [string]$Board,
     [string]$JarPath,
     [string]$KiCadPython,
-    [int]$MaxPasses = 0,            # 0 = Freerouting default
+    [int]$MaxPasses = 100,           # 0 = Freerouting default
     [int]$TimeoutMinutes = 60,
     [switch]$SkipRules              # keep the .kicad_pro rules untouched
 )
@@ -61,7 +61,7 @@ if (-not $java) { throw "java not found. Install JDK 21+ or set JAVA_HOME." }
 Write-Host "Board  : $Board`nPython : $KiCadPython`nJar    : $JarPath`nJava   : $java"
 
 # --- work dir (copy, original untouched) ---
-$work = Join-Path ([IO.Path]::GetTempPath()) "route_$name"
+$work = Join-Path ([IO.Path]::GetTempPath()) ("route_" + ($name -replace '[^A-Za-z0-9_]', '_'))
 if (Test-Path $work) { Remove-Item $work -Recurse -Force }
 New-Item -ItemType Directory $work | Out-Null
 Copy-Item -LiteralPath $Board (Join-Path $work 'board.kicad_pcb')
@@ -76,7 +76,7 @@ if (-not $SkipRules -and (Test-Path (Join-Path $work 'board.kicad_pro'))) {
 if ($LASTEXITCODE) { throw "DSN export failed" }
 
 # --- route ---
-$args = @('-jar', $JarPath, '-de', (Join-Path $work 'board.dsn'), '-do', (Join-Path $work 'board.ses'))
+$args = @('-jar', "`"$JarPath`"", '--gui.enabled=false', '-de', "`"$(Join-Path $work 'board.dsn')`"", '-do', "`"$(Join-Path $work 'board.ses')`"")
 if ($MaxPasses -gt 0) { $args += @('-mp', $MaxPasses) }
 $log = Join-Path $work 'freerouting.log'
 $proc = Start-Process $java -ArgumentList $args -NoNewWindow -PassThru -RedirectStandardOutput $log -RedirectStandardError "$log.err"
